@@ -1,0 +1,17 @@
+{% extends "network/layout.html" %}
+
+{% block body %}
+        <div class="container card my-2">
+            <form  action="{% url 'post' %}" method="post">
+                {% csrf_token %}
+                <h5 >What do you think about?</h5>
+                <textarea  class="form-control" name="new_post" id="new_post" cols="30" rows="5" placeholder="New Post..."></textarea>
+                <span class="d-block text-danger">{% if messages %} {% for message in messages %} {% if message.tags == "post_error error" %} {{message}} {% endif %} {% endfor %} {% endif %}</span>
+                <button class="btn btn-primary my-2" type="submit">Post</button>
+            </form>
+        </div>
+        <hr>
+        <h2 class="ml-5">All Posts</h2>
+        {% include "network/includes/posts.html" with following="index" %}
+
+{% endblock %}

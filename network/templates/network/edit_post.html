@@ -1,0 +1,36 @@
+{% extends "network/layout.html" %}
+
+{% block body %}
+<div class="container card my-2">
+  <h5>Edit Post</h5>
+  <textarea class="form-control" name="edited_post" id="edit_post" cols="30" rows="5">{{post.content}}</textarea>
+  <input id="edited_post_id" type="text" hidden value="{{post.id}}">
+  <span class="d-block text-danger">{% if messages %} {% for message in messages %} 
+    {% if message.tags == "bid_error error" %} {{message}} {% endif %} {% endfor %} {% endif %}</span>
+  <button id="edit_btn" class="btn btn-primary my-2" type="button">Edit</button>
+
+</div>
+<script>
+  const editBtn = document.querySelector("#edit_btn");
+
+  editBtn.onclick = (event) => {
+    const textarea = document.getElementById("edit_post");
+    const edited_post_id = document.getElementById("edited_post_id");
+    const content = textarea.value;
+    const post_id = edited_post_id.value;
+    fetch(`/edit/${post_id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ content: content, id: post_id })
+    })
+      .then(response => response.json())
+      .then(data => {
+        if (data.redirect_url) {
+          window.location.href = data.redirect_url;
+        } else {
+          console.error("The response not found!")
+        }
+      })
+      .catch(err => console.log(err))
+  }
+</script>
+{% endblock %}
