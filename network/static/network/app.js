@@ -1,3 +1,4 @@
+
 const favorites = document.querySelectorAll(".favorite");
 const favoriteComment = document.querySelectorAll(".favorite_comment");
 const showCommentsBtn = document.querySelectorAll(".show_comments");

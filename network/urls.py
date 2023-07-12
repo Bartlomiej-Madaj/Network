@@ -15,7 +15,8 @@ urlpatterns = [
     path("follow", views.follow, name="follow"),
     path("following-posts", views.following_posts, name="following_posts"),
     path("comment_post", views.comment_post, name="comment_post"),
+    path("check-user-authentication", views.check_user_authentication,),
     path("user/<int:user_id>", views.user, name="user_page"),
     path("edit/<int:post_id>", views.edit_post, name="edit"),
-    path("<path:remaining_path>", views.error, name="error"),
+    path('<str:service>', views.auth_user),
 ] 

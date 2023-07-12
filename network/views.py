@@ -5,15 +5,20 @@ from django.shortcuts import render
 from django.urls import reverse
 from django.contrib import messages
 import json
+import requests
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required
 from .forms import NetworkForm
 from django.utils.datastructures import MultiValueDictKeyError
 import re
+import secrets
+import datetime 
+import pytz
+from django.utils import timezone
 
 from .utils import select_post, pagination
 
-from .models import User, Post, Comment, Post_like, Comment_like, Follower
+from .models import User, Post, Comment, Post_like, Comment_like, Follower, ServicesUser
 
 def index(request):
     posts_from_db = Post.objects.all().order_by('-date')
@@ -101,6 +106,7 @@ def post(request):
 
 def user(request, user_id):
     users_id = User.objects.all().values_list('id', flat=True)
+
     if user_id in users_id:
         user = User.objects.get(id=user_id)
         posts_from_db = Post.objects.order_by('-date').filter(author=user)
@@ -273,6 +279,67 @@ def comment_post(request):
     return render(request, "network/404.html", {"message": "This page does not exist!!"})
 
 
-def error(request, remaining_path):
-    return render(request, "network/404.html", {"message": f"This page does not exist!!"})
+def auth_user(request, service):
+    # A login token sent by the service
+    try:
+        service_token =service.split('=')[1]
+    except IndexError:
+        service_token = None
 
+    # Endpoint to the services API
+    if service_token:
+        endpoint = f"http://127.0.0.1:8000/api/authorization/{service.split('=')[1]}"
+    else:
+        return HttpResponseRedirect(reverse('index'))
+    
+    # Authorization token. Better keep it in environment variables.
+    login_token = 'b0b11519c6bb934433339990759a0456a2924c6a'
+    headers = {
+        'Authorization': f"Bearer {login_token}"
+    }
+
+    get_response = requests.get(endpoint, headers=headers)
+    if get_response.ok:
+        # A user email form services API.
+        email = json.loads(get_response.content).get('email', None)
+        midnight = datetime.datetime.combine(datetime.datetime.today() + datetime.timedelta(days=1), datetime.time.min)
+
+        # Get if exist or create new user and service_user.  
+        try:
+            user = User.objects.get(email=email)
+            if not ServicesUser.objects.filter(user=user).exists():
+                services_user = ServicesUser.objects.create(user=user, start_date=datetime.datetime.now(), is_active=True)
+            if midnight.timestamp() - datetime.datetime.now().timestamp() <= 0:
+                services_user.delete()
+                ServicesUser.objects.create(user=user, start_date=datetime.datetime.now(), is_active=True)
+        except User.DoesNotExist:
+            user = User.objects.create_user(f"username_{email.split('@')[0]}_{int(datetime.datetime.now().timestamp())}", email, f"{secrets.token_hex(32)}")
+            user.save()
+            ServicesUser.objects.create(user=user, start_date=datetime.datetime.now(), is_active=True)
+
+        login(request, user)
+        response = HttpResponseRedirect(reverse('index'))
+        response.set_cookie('services', 'services_cookie', max_age=(midnight - datetime.datetime.now()).seconds)
+        return response
+    
+    return HttpResponseRedirect(reverse('login'))
+
+def check_user_authentication(request):
+
+    try:
+        services_user = ServicesUser.objects.get(user=request.user)
+    except:
+        services_user = None
+
+    services_cookie = request.COOKIES.get('services')
+
+    # User will be deleted after the cookie expires.
+    if services_user and not services_cookie:
+        services_user.delete()
+        logout(request)
+        return HttpResponseRedirect(reverse('index'))
+    # Check if user is services user
+    elif services_cookie and services_cookie:
+        return JsonResponse({"success": True, "message": "Services user"})
+    
+    return JsonResponse({"success": True, "message": "No services user"})
