@@ -18,7 +18,7 @@ from django.utils import timezone
 
 from .utils import select_post, pagination
 
-from .models import User, Post, Comment, Post_like, Comment_like, Follower, ServicesUser
+from .models import User, Post, Comment, Post_like, Comment_like, Follower 
 
 def index(request):
     posts_from_db = Post.objects.all().order_by('-date')
@@ -282,7 +282,7 @@ def comment_post(request):
 def auth_user(request, service):
     # A login token sent by the service
     try:
-        service_token =service.split('=')[1]
+        service_token = service.split('=')[1]
     except IndexError:
         service_token = None
 
@@ -293,7 +293,7 @@ def auth_user(request, service):
         return HttpResponseRedirect(reverse('index'))
     
     # Authorization token. Better keep it in environment variables.
-    login_token = 'b0b11519c6bb934433339990759a0456a2924c6a'
+    login_token = '7ab70b2dd1c1355b48a3e4c023b749b7c072ccd0'
     headers = {
         'Authorization': f"Bearer {login_token}"
     }
@@ -301,45 +301,28 @@ def auth_user(request, service):
     get_response = requests.get(endpoint, headers=headers)
     if get_response.ok:
         # A user email form services API.
-        email = json.loads(get_response.content).get('email', None)
+        email = json.loads(get_response.content).get('internal_email_address', None)
         midnight = datetime.datetime.combine(datetime.datetime.today() + datetime.timedelta(days=1), datetime.time.min)
 
-        # Get if exist or create new user and service_user.  
         try:
             user = User.objects.get(email=email)
-            if not ServicesUser.objects.filter(user=user).exists():
-                services_user = ServicesUser.objects.create(user=user, start_date=datetime.datetime.now(), is_active=True)
-            if midnight.timestamp() - datetime.datetime.now().timestamp() <= 0:
-                services_user.delete()
-                ServicesUser.objects.create(user=user, start_date=datetime.datetime.now(), is_active=True)
         except User.DoesNotExist:
-            user = User.objects.create_user(f"username_{email.split('@')[0]}_{int(datetime.datetime.now().timestamp())}", email, f"{secrets.token_hex(32)}")
+            user = User.objects.create_user(f"username_{email.split('@')[0]}_{round(datetime.datetime.now().timestamp())}", email, f"{secrets.token_hex(32)}")
             user.save()
-            ServicesUser.objects.create(user=user, start_date=datetime.datetime.now(), is_active=True)
 
         login(request, user)
         response = HttpResponseRedirect(reverse('index'))
         response.set_cookie('services', 'services_cookie', max_age=(midnight - datetime.datetime.now()).seconds)
         return response
     
-    return HttpResponseRedirect(reverse('login'))
+    return HttpResponseRedirect(reverse('index'))
 
 def check_user_authentication(request):
 
-    try:
-        services_user = ServicesUser.objects.get(user=request.user)
-    except:
-        services_user = None
-
     services_cookie = request.COOKIES.get('services')
-
     # User will be deleted after the cookie expires.
-    if services_user and not services_cookie:
-        services_user.delete()
+    if not services_cookie:
         logout(request)
         return HttpResponseRedirect(reverse('index'))
-    # Check if user is services user
-    elif services_cookie and services_cookie:
-        return JsonResponse({"success": True, "message": "Services user"})
     
     return JsonResponse({"success": True, "message": "No services user"})

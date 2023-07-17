@@ -20,7 +20,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
 ALLOWED_HOSTS = [
-    "192.168.56.1",
+    "192.168.144.1",
     "localhost"
 ]
 

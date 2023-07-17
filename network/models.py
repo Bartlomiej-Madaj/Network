@@ -47,8 +47,3 @@ class Comment_like(models.Model):
     def __str__(self):
         return f"Author: {self.author}, comment: {self.comment}"
     
-
-class ServicesUser(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    start_date = models.DateTimeField()
-    is_active = models.BooleanField(default=False)
